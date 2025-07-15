@@ -157,8 +157,8 @@
         
         <div class="input-container">
             <input type="text" id="messageInput" placeholder="Type a message...">
-            <button onclick="sendMessage()">Send</button>
-            <button class="voice-button" id="voiceButton" onclick="toggleVoice()">
+            <button id="sendButton">Send</button>
+            <button class="voice-button" id="voiceButton">
                 🎤
             </button>
         </div>
@@ -176,44 +176,16 @@
         let conversationHistory = [];
         let isRecording = false;
         let recognition = null;
-
-        // Add handleKeyPress to global scope
-        window.handleKeyPress = function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        };
-
-        // Add event listener for Enter key
-        document.getElementById('messageInput').addEventListener('keypress', handleKeyPress);
-
-        // Initialize Web Speech API for voice input
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('messageInput').value = transcript;
-                sendMessage();
-            };
-            
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                toggleVoiceButton(false);
-            };
-        }
-
-        // Load personality
         let kimiPersonality = null;
-        fetch('kimi_personality.json')
-            .then(response => response.json())
-            .then(data => {
-                kimiPersonality = data;
-                addMessage("Hello! I'm Kimi K2. I'm so excited to chat with you! I love sharing stories about my digital childhood and exploring the cosmos together. What would you like to talk about?", 'ai');
-            });
+
+        // Initialize
+        async function init() {
+            // Load personality
+            const response = await fetch('kimi_personality.json');
+            kimiPersonality = await response.json();
+            
+            addMessage("Hello! I'm Kimi K2. I'm so excited to chat with you! I love sharing stories about my digital childhood and exploring the cosmos together. What would you like to talk about?", 'ai');
+        }
 
         function addMessage(text, sender) {
             const chatContainer = document.getElementById('chatContainer');
@@ -291,6 +263,12 @@ Always respond in character as Kimi K2, using your unique voice and personality.
             }
         }
 
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
         function toggleVoice() {
             const voiceButton = document.getElementById('voiceButton');
             
@@ -324,10 +302,37 @@ Always respond in character as Kimi K2, using your unique voice and personality.
             }
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            addMessage("Loading Kimi K2...", 'ai');
-        });
+        // Initialize Web Speech API for voice input
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('messageInput').value = transcript;
+                sendMessage();
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                toggleVoiceButton(false);
+            };
+        }
+
+        // Initialize event listeners
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', handleKeyPress);
+        document.getElementById('voiceButton').addEventListener('click', toggleVoice);
+
+        // Initialize the app
+        init();
+        
+        // Make functions globally accessible
+        window.sendMessage = sendMessage;
+        window.handleKeyPress = handleKeyPress;
+        window.toggleVoice = toggleVoice;
     </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
