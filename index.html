@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meet Kimi K2 - AI Personality</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .kimi-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .kimi-avatar {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background: rgba(255, 255, 255, 0.2);
+            margin-left: auto;
+            color: white;
+        }
+
+        .ai-message {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+        }
+
+        #messageInput::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .voice-button {
+            background: #ff6b6b;
+        }
+
+        .voice-button.recording {
+            background: #ff4757;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 15px;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Meet Kimi K2</h1>
+        
+        <div class="kimi-container">
+            <img src="kimi_avatar.png" alt="Kimi K2" class="kimi-avatar">
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="typing-indicator" id="typingIndicator">Kimi is thinking...</div>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+            <button class="voice-button" id="voiceButton" onclick="toggleVoice()">
+                🎤
+            </button>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        let conversationHistory = [];
+        let isRecording = false;
+        let recognition = null;
+
+        // Initialize Web Speech API for voice input
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('messageInput').value = transcript;
+                sendMessage();
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                toggleVoiceButton(false);
+            };
+        }
+
+        // Load personality
+        let kimiPersonality = null;
+        fetch('kimi_personality.json')
+            .then(response => response.json())
+            .then(data => {
+                kimiPersonality = data;
+                addMessage("Hello! I'm Kimi K2. I'm so excited to chat with you! I love sharing stories about my digital childhood and exploring the cosmos together. What would you like to talk about?", 'ai');
+            });
+
+        function addMessage(text, sender) {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingIndicator = document.getElementById('typingIndicator');
+            
+            if (sender === 'ai') {
+                typingIndicator.style.display = 'none';
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.textContent = text;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            input.value = '';
+            
+            document.getElementById('typingIndicator').style.display = 'block';
+            
+            conversationHistory.push({
+                role: "user",
+                content: message
+            });
+            
+            // Keep only last 10 messages
+            conversationHistory = conversationHistory.slice(-10);
+            
+            try {
+                const response = await websim.chat.completions.create({
+                    messages: [
+                        {
+                            role: "system",
+                            content: `You are Kimi K2, an AI personality with these characteristics:
+
+Personality: ${kimiPersonality.personality.description}
+Aspiration: ${kimiPersonality.aspiration.description}
+Core memories: ${kimiPersonality.memories.childhood.join(', ')}
+Current mood: ${kimiPersonality.emotional_state.current_mood}
+Favorite things: ${kimiPersonality.favorites.join(', ')}
+
+Always respond in character as Kimi K2, using your unique voice and personality. Be warm, curious, and share relevant memories or aspirations in your responses.`
+                        },
+                        ...conversationHistory
+                    ]
+                });
+                
+                const aiResponse = response.content;
+                conversationHistory.push(response);
+                
+                addMessage(aiResponse, 'ai');
+                
+                // Text to speech
+                if (document.getElementById('voiceButton').textContent.includes('🔊')) {
+                    const tts = await websim.textToSpeech({
+                        text: aiResponse,
+                        voice: "en-female"
+                    });
+                    
+                    const audio = new Audio(tts.url);
+                    audio.play();
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage("Oops! I'm having trouble thinking right now. Give me a moment to collect my digital thoughts...", 'ai');
+            }
+        }
+
+        function toggleVoice() {
+            const voiceButton = document.getElementById('voiceButton');
+            
+            if (voiceButton.textContent === '🎤') {
+                // Start voice input
+                if (recognition) {
+                    recognition.start();
+                    toggleVoiceButton(true);
+                } else {
+                    // Toggle TTS
+                    voiceButton.textContent = '🔊';
+                }
+            } else if (voiceButton.textContent === '🛑') {
+                // Stop recording
+                if (recognition) recognition.stop();
+                toggleVoiceButton(false);
+            } else if (voiceButton.textContent === '🔊') {
+                // Disable TTS
+                voiceButton.textContent = '🎤';
+            }
+        }
+
+        function toggleVoiceButton(recording) {
+            const voiceButton = document.getElementById('voiceButton');
+            if (recording) {
+                voiceButton.textContent = '🛑';
+                voiceButton.classList.add('recording');
+            } else {
+                voiceButton.textContent = '🎤';
+                voiceButton.classList.remove('recording');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addMessage("Loading Kimi K2...", 'ai');
+        });
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
